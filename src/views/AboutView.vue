@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { ref, nextTick } from 'vue'
 import Cropper from 'cropperjs'
-import type CropperImage from '@cropper/element-image'
-import type { Selection } from '@cropper/element-selection'
+
 import { ElDialog, ElButton } from 'element-plus'
 
 const dialogVisible = ref(false)
@@ -15,8 +14,18 @@ const originalImage = ref('https://fengyuanchen.github.io/cropperjs/images/pictu
 const rotateDeg = ref(0)
 const scaleX = ref(1)
 const scaleY = ref(1)
+const infos = ref()
+const cropperContainerRef = ref<HTMLDivElement | null>(null)
 
-const imageRef = ref<HTMLImageElement>()
+
+function formatBytes(bytes: number): string {
+  if (bytes < 0) {
+    return "Invalid value"; // 可选
+  }
+  const units: string[] = ["B", "KB", "MB", "GB", "TB", "PB", "EB"];
+  const i: number = Math.floor(Math.log(bytes) / Math.log(1024));
+  return `${(bytes / Math.pow(1024, i)).toFixed(2)} ${units[i]}`;
+}
 
 function openDialog() {
   dialogVisible.value = true
@@ -25,19 +34,22 @@ function openDialog() {
   })
 }
 
+function onCropperSelectionChange() {
+
+  saveCrop()
+}
+
 function initializeCropper() {
   if (cropperInstance.value) {
     return
   }
 
   const template = `
-        <div class="cropper-container" >
-          <div class="cropper-wrap-box">
-            <cropper-canvas background>
+        <cropper-canvas background>
               <cropper-image rotatable scalable translatable></cropper-image>
               <cropper-shade ></cropper-shade>
               <cropper-handle action="select" plain></cropper-handle>
-              <cropper-selection initial-coverage="0.5" id="cropperSelection" @change="onCropperSelectionChange"  movable resizable >
+              <cropper-selection initial-aspect-ratio="1" initial-coverage="0.5" id="cropperSelection"  movable resizable >
                 <cropper-grid role="grid" bordered covered></cropper-grid>
                 <cropper-crosshair centered></cropper-crosshair>
                 <cropper-handle action="move"></cropper-handle>
@@ -51,18 +63,20 @@ function initializeCropper() {
                 <cropper-handle action="sw-resize"></cropper-handle>
               </cropper-selection>
             </cropper-canvas>
-          </div>
-         <div class="cropper-preview-box" >
-          <cropper-viewer selection="#cropperSelection"></cropper-viewer>
-         </div>
-        </div>
       `
-  cropperInstance.value = new Cropper(imageRef.value as HTMLImageElement, {
+  const image = new Image()
+  image.src = originalImage.value
+  image.crossOrigin = 'anonymous' // 解决跨域问题
+  cropperInstance.value = new Cropper(image, {
     template: template,
+    container: cropperContainerRef.value as HTMLDivElement,
   })
 
   //否则刚开始的时候不会显示预览
   setTimeout(() => {
+    cropperInstance.value
+      ?.getCropperSelection()
+      ?.addEventListener('change', onCropperSelectionChange)
     cropperInstance.value?.getCropperSelection()?.$move(10, 0)
   }, 0)
 }
@@ -74,8 +88,6 @@ function handleUpload(event: Event) {
     reader.onload = (e) => {
       const upoadImg = e.target?.result as string
       cropperInstance.value?.getCropperImage()?.setAttribute('src', upoadImg)
-      // reset()
-      // nextTick(() => initializeCropper())
     }
     reader.readAsDataURL(input.files[0])
   }
@@ -99,8 +111,22 @@ function saveCrop() {
         },
       })
       .then((canvas) => {
-        editedImage.value = canvas.toDataURL('image/png')
-        dialogVisible.value = false
+        canvas.toBlob((blob) => {
+          if (!blob) return
+          const fileReader: FileReader = new FileReader()
+          fileReader.readAsDataURL(blob)
+          fileReader.onloadend = (e) => {
+            if (!e.target?.result || !blob) return
+            infos.value = {
+              base64: e.target.result,
+              blob,
+              info: { size: blob.size, width: selection.width, height: selection.height },
+            }
+            //   // editedImage.value = canvas.toDataURL('image/png')
+            //   editedImage.value = e.target.result as string
+            // dialogVisible.value = false
+          }
+        })
       })
   }
 }
@@ -143,55 +169,6 @@ function rotate(degree: number) {
 function zoom(ratio: number) {
   cropperInstance.value?.getCropperSelection()?.$zoom(ratio)
 }
-
-function inSelection(selection: Selection, maxSelection: Selection) {
-  return (
-    selection.x >= maxSelection.x &&
-    selection.y >= maxSelection.y &&
-    selection.x + selection.width <= maxSelection.x + maxSelection.width &&
-    selection.y + selection.height <= maxSelection.y + maxSelection.height
-  )
-}
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function onCropperSelectionChange(event: CustomEvent) {
-  const cropperCanvas = cropperInstance.value?.getCropperCanvas()
-  if (!cropperCanvas) return
-  const cropperImage = cropperInstance.value?.getCropperImage()
-  const cropperSelection = cropperInstance.value?.getCropperSelection()
-  const cropperCanvasRect = cropperCanvas.getBoundingClientRect()
-  if (!cropperImage || !cropperSelection) return
-
-  // 1. Clone the cropper image.
-  const cropperImageClone = cropperImage.cloneNode() as CropperImage
-
-  // 2. Apply the new matrix to the cropper image clone.
-  cropperImageClone.style.transform = `matrix(${event.detail.matrix.join(', ')})`
-
-  // 3. Make the cropper image clone invisible.
-  cropperImageClone.style.opacity = '0'
-
-  // 4. Append the cropper image clone to the cropper canvas.
-  cropperCanvas.appendChild(cropperImageClone)
-
-  // 5. Compute the boundaries of the cropper image clone.
-  const cropperImageRect = cropperImageClone.getBoundingClientRect()
-
-  // 6. Remove the cropper image clone.
-  cropperCanvas.removeChild(cropperImageClone)
-
-  const selection = cropperSelection
-  const maxSelection: Selection = {
-    x: cropperImageRect.left - cropperCanvasRect.left,
-    y: cropperImageRect.top - cropperCanvasRect.top,
-    width: cropperImageRect.width,
-    height: cropperImageRect.height,
-  }
-
-  if (!inSelection(selection, maxSelection)) {
-    event.preventDefault()
-  }
-}
 </script>
 
 <template>
@@ -203,7 +180,18 @@ function onCropperSelectionChange(event: CustomEvent) {
     </div>
 
     <el-dialog v-model="dialogVisible" modal-class="cropper-modal" title="编辑图片" width="40%">
-      <img ref="imageRef" :src="originalImage" />
+      <div class="cropper-container">
+        <div ref="cropperContainerRef" class="cropper-wrap-box"></div>
+        <div class="cropper-preview-box">
+          <el-image :src="infos?.base64" />
+          <div>
+            <p>原始大小：{{ infos?.info.size||0 }}</p>
+            <p>图片大小: {{ formatBytes(infos?.info.size || 0) }}</p>
+            <p>宽度: {{ infos?.info.width || 0 }} px</p>
+            <p>高度: {{ infos?.info.height || 0 }} px</p>
+          </div>
+        </div>
+      </div>
       <div class="toolbar">
         <input
           type="file"
@@ -263,7 +251,6 @@ function onCropperSelectionChange(event: CustomEvent) {
       .cropper-preview-box {
         flex: 1;
         cropper-viewer {
-          width: 100%;
           border-radius: 50%;
         }
       }
