@@ -32,24 +32,31 @@ function initializeCropper() {
   }
 
   const template = `
-        <cropper-canvas background style="width:${cropperWidth.value}px;height:${cropperHeight.value}px">
-          <cropper-image rotatable scalable translatable></cropper-image>
-          <cropper-shade hidden></cropper-shade>
-          <cropper-handle action="select" plain></cropper-handle>
-          <cropper-selection initial-coverage="0.5" movable resizable ${isCircle.value ? 'circle' : ''} aspect-ratio="1">
-            <cropper-grid role="grid" bordered covered></cropper-grid>
-            <cropper-crosshair centered></cropper-crosshair>
-            <cropper-handle action="move"></cropper-handle>
-            <cropper-handle action="n-resize"></cropper-handle>
-            <cropper-handle action="e-resize"></cropper-handle>
-            <cropper-handle action="s-resize"></cropper-handle>
-            <cropper-handle action="w-resize"></cropper-handle>
-            <cropper-handle action="ne-resize"></cropper-handle>
-            <cropper-handle action="nw-resize"></cropper-handle>
-            <cropper-handle action="se-resize"></cropper-handle>
-            <cropper-handle action="sw-resize"></cropper-handle>
-          </cropper-selection>
-        </cropper-canvas>
+        <div class="cropper-container">
+          <div class="cropper-wrap-box">
+            <cropper-canvas background style="width:${cropperWidth.value}px;height:${cropperHeight.value}px">
+              <cropper-image rotatable scalable translatable></cropper-image>
+              <cropper-shade hidden></cropper-shade>
+              <cropper-handle action="select" plain></cropper-handle>
+              <cropper-selection id="cropperSelection" initial-coverage="0.5" movable resizable aspect-ratio="1">
+                <cropper-grid role="grid" bordered covered></cropper-grid>
+                <cropper-crosshair centered></cropper-crosshair>
+                <cropper-handle action="move"></cropper-handle>
+                <cropper-handle action="n-resize"></cropper-handle>
+                <cropper-handle action="e-resize"></cropper-handle>
+                <cropper-handle action="s-resize"></cropper-handle>
+                <cropper-handle action="w-resize"></cropper-handle>
+                <cropper-handle action="ne-resize"></cropper-handle>
+                <cropper-handle action="nw-resize"></cropper-handle>
+                <cropper-handle action="se-resize"></cropper-handle>
+                <cropper-handle action="sw-resize"></cropper-handle>
+              </cropper-selection>
+            </cropper-canvas>
+          </div>
+         <div class="cropper-preview-box">
+          <cropper-viewer selection="#cropperSelection"></cropper-viewer>
+         </div>
+        </div>
       `
 
   cropperRef.value = new Cropper(imageRef.value as HTMLImageElement, {
@@ -134,44 +141,63 @@ function zoom(ratio: number) {
       <el-button @click="openDialog" type="primary">编辑</el-button>
     </div>
 
-    <el-dialog v-model="dialogVisible" title="编辑图片" width="80%">
+    <el-dialog v-model="dialogVisible" modal-class="cropper-modal" title="编辑图片" width="40%">
       <img ref="imageRef" :src="originalImage" />
-       <div class="toolbar">
-            <input
-              type="file"
-              @change="handleUpload"
-              accept="image/*"
-              style="display: none"
-              id="upload-input"
-            />
-            <label for="upload-input" class="toolbar-button">上传</label>
-            <button @click="toggleShape" class="toolbar-button">
-              {{ isCircle ? '矩形' : '圆形' }}裁剪
-            </button>
-            <button @click="reset" class="toolbar-button">重置</button>
-            <button @click="move(-10, 0)" class="toolbar-button">左移</button>
-            <button @click="move(10, 0)" class="toolbar-button">右移</button>
-            <button @click="move(0, -10)" class="toolbar-button">上移</button>
-            <button @click="move(0, 10)" class="toolbar-button">下移</button>
-            <button @click="flip(true)" class="toolbar-button">水平翻转</button>
-            <button @click="flip(false)" class="toolbar-button">垂直翻转</button>
-            <button @click="rotate(-45)" class="toolbar-button">逆时针旋转</button>
-            <button @click="rotate(45)" class="toolbar-button">顺时针旋转</button>
-            <button @click="zoom(0.1)" class="toolbar-button">放大</button>
-            <button @click="zoom(-0.1)" class="toolbar-button">缩小</button>
-          </div>
+      <div class="toolbar">
+        <input
+          type="file"
+          @change="handleUpload"
+          accept="image/*"
+          style="display: none"
+          id="upload-input"
+        />
+        <label for="upload-input" class="toolbar-button">上传</label>
+        <button @click="toggleShape" class="toolbar-button">
+          {{ isCircle ? '矩形' : '圆形' }}裁剪
+        </button>
+        <button @click="reset" class="toolbar-button">重置</button>
+        <button @click="move(-10, 0)" class="toolbar-button">左移</button>
+        <button @click="move(10, 0)" class="toolbar-button">右移</button>
+        <button @click="move(0, -10)" class="toolbar-button">上移</button>
+        <button @click="move(0, 10)" class="toolbar-button">下移</button>
+        <button @click="flip(true)" class="toolbar-button">水平翻转</button>
+        <button @click="flip(false)" class="toolbar-button">垂直翻转</button>
+        <button @click="rotate(-45)" class="toolbar-button">逆时针旋转</button>
+        <button @click="rotate(45)" class="toolbar-button">顺时针旋转</button>
+        <button @click="zoom(0.1)" class="toolbar-button">放大</button>
+        <button @click="zoom(-0.1)" class="toolbar-button">缩小</button>
+      </div>
       <template #footer>
-         <el-button @click="dialogVisible = false">取消</el-button>
-            <el-button @click="saveCrop" type="primary">保存</el-button>
-       </template>
+        <el-button @click="dialogVisible = false">取消</el-button>
+        <el-button @click="saveCrop" type="primary">保存</el-button>
+      </template>
     </el-dialog>
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .page-container {
   padding: 20px;
   text-align: center;
+  :deep(.cropper-modal) {
+    .cropper-container {
+      display: flex;
+      flex-direction: row;
+      height: 200px;
+      gap: 20px;
+      .cropper-wrap-box {
+        flex: 1;
+        position: relative;
+        cropper-canvas{
+          height: 200px !important;
+
+        }
+      }
+      .cropper-preview-box {
+        flex: 1;
+      }
+    }
+  }
 }
 
 .image-display {
@@ -205,38 +231,6 @@ function zoom(ratio: number) {
 
 .toolbar-button:hover {
   background-color: #eee;
-}
-
-.cropper-container {
-  flex-grow: 1;
-  position: relative;
-  overflow: hidden;
-  background: #f0f0f0;
-}
-
-.preview-section {
-  flex: 1;
-  padding-left: 20px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.preview-area {
-  width: 200px;
-  height: 200px;
-  overflow: hidden;
-  border: 1px solid #ccc;
-  background: #f7f7f7;
-  margin-bottom: 20px;
-}
-
-.circle-preview {
-  border-radius: 50%;
-}
-
-.preview-area :deep(canvas) {
-  max-width: 100%;
 }
 
 .dialog-actions {
