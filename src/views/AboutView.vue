@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { ref, nextTick } from 'vue'
 import Cropper from 'cropperjs'
+import type CropperImage from '@cropper/element-image'
+import type { Selection } from '@cropper/element-selection'
 import { ElDialog, ElButton } from 'element-plus'
 
 const dialogVisible = ref(false)
-const cropperRef = ref<Cropper | null>(null)
+const cropperInstance = ref<Cropper | null>(null)
 const isCircle = ref(false)
 const editedImage = ref<string | null>(null)
 const originalImage = ref('https://fengyuanchen.github.io/cropperjs/images/picture.jpg')
@@ -13,9 +15,6 @@ const originalImage = ref('https://fengyuanchen.github.io/cropperjs/images/pictu
 const rotateDeg = ref(0)
 const scaleX = ref(1)
 const scaleY = ref(1)
-
-const cropperWidth = ref(0)
-const cropperHeight = ref(0)
 
 const imageRef = ref<HTMLImageElement>()
 
@@ -27,18 +26,18 @@ function openDialog() {
 }
 
 function initializeCropper() {
-  if (cropperRef.value) {
+  if (cropperInstance.value) {
     return
   }
 
   const template = `
-        <div class="cropper-container">
+        <div class="cropper-container" >
           <div class="cropper-wrap-box">
-            <cropper-canvas background style="width:${cropperWidth.value}px;height:${cropperHeight.value}px">
+            <cropper-canvas background>
               <cropper-image rotatable scalable translatable></cropper-image>
-              <cropper-shade hidden></cropper-shade>
+              <cropper-shade ></cropper-shade>
               <cropper-handle action="select" plain></cropper-handle>
-              <cropper-selection id="cropperSelection" initial-coverage="0.5" movable resizable aspect-ratio="1">
+              <cropper-selection initial-coverage="0.5" id="cropperSelection" @change="onCropperSelectionChange"  movable resizable >
                 <cropper-grid role="grid" bordered covered></cropper-grid>
                 <cropper-crosshair centered></cropper-crosshair>
                 <cropper-handle action="move"></cropper-handle>
@@ -53,15 +52,19 @@ function initializeCropper() {
               </cropper-selection>
             </cropper-canvas>
           </div>
-         <div class="cropper-preview-box">
+         <div class="cropper-preview-box" >
           <cropper-viewer selection="#cropperSelection"></cropper-viewer>
          </div>
         </div>
       `
-
-  cropperRef.value = new Cropper(imageRef.value as HTMLImageElement, {
+  cropperInstance.value = new Cropper(imageRef.value as HTMLImageElement, {
     template: template,
   })
+
+  //否则刚开始的时候不会显示预览
+  setTimeout(() => {
+    cropperInstance.value?.getCropperSelection()?.$move(10, 0)
+  }, 0)
 }
 
 function handleUpload(event: Event) {
@@ -69,22 +72,31 @@ function handleUpload(event: Event) {
   if (input.files && input.files[0]) {
     const reader = new FileReader()
     reader.onload = (e) => {
-      originalImage.value = e.target?.result as string
-      reset()
-      nextTick(() => initializeCropper())
+      const upoadImg = e.target?.result as string
+      cropperInstance.value?.getCropperImage()?.setAttribute('src', upoadImg)
+      // reset()
+      // nextTick(() => initializeCropper())
     }
     reader.readAsDataURL(input.files[0])
   }
 }
 
 function saveCrop() {
-  if (!cropperRef.value) return
-  const selection = cropperRef.value.getCropperSelection()
+  if (!cropperInstance.value) return
+  const selection = cropperInstance.value.getCropperSelection()
   if (selection) {
     selection
       .$toCanvas({
-        width: 512,
-        height: 512,
+        beforeDraw(ctx, canvas) {
+          const x = canvas.width / 2
+          const y = canvas.height / 2
+          const radius = Math.min(canvas.width, canvas.height) / 2
+          // 绘制圆形裁剪区域
+          ctx.beginPath()
+          ctx.arc(x, y, radius, 0, Math.PI * 2, true)
+          ctx.closePath()
+          ctx.clip()
+        },
       })
       .then((canvas) => {
         editedImage.value = canvas.toDataURL('image/png')
@@ -103,15 +115,15 @@ function reset() {
   rotateDeg.value = 0
   scaleX.value = 1
   scaleY.value = 1
-  if (cropperRef.value) {
-    const selection = cropperRef.value.getCropperSelection()
+  if (cropperInstance.value) {
+    const selection = cropperInstance.value.getCropperSelection()
     selection?.$moveTo(0, 0)
     initializeCropper()
   }
 }
 
 function move(x: number, y: number) {
-  cropperRef.value?.getCropperSelection()?.$move(x, y)
+  cropperInstance.value?.getCropperSelection()?.$move(x, y)
 }
 
 function flip(horizontal: boolean) {
@@ -129,7 +141,56 @@ function rotate(degree: number) {
 }
 
 function zoom(ratio: number) {
-  cropperRef.value?.getCropperSelection()?.$zoom(ratio)
+  cropperInstance.value?.getCropperSelection()?.$zoom(ratio)
+}
+
+function inSelection(selection: Selection, maxSelection: Selection) {
+  return (
+    selection.x >= maxSelection.x &&
+    selection.y >= maxSelection.y &&
+    selection.x + selection.width <= maxSelection.x + maxSelection.width &&
+    selection.y + selection.height <= maxSelection.y + maxSelection.height
+  )
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function onCropperSelectionChange(event: CustomEvent) {
+  const cropperCanvas = cropperInstance.value?.getCropperCanvas()
+  if (!cropperCanvas) return
+  const cropperImage = cropperInstance.value?.getCropperImage()
+  const cropperSelection = cropperInstance.value?.getCropperSelection()
+  const cropperCanvasRect = cropperCanvas.getBoundingClientRect()
+  if (!cropperImage || !cropperSelection) return
+
+  // 1. Clone the cropper image.
+  const cropperImageClone = cropperImage.cloneNode() as CropperImage
+
+  // 2. Apply the new matrix to the cropper image clone.
+  cropperImageClone.style.transform = `matrix(${event.detail.matrix.join(', ')})`
+
+  // 3. Make the cropper image clone invisible.
+  cropperImageClone.style.opacity = '0'
+
+  // 4. Append the cropper image clone to the cropper canvas.
+  cropperCanvas.appendChild(cropperImageClone)
+
+  // 5. Compute the boundaries of the cropper image clone.
+  const cropperImageRect = cropperImageClone.getBoundingClientRect()
+
+  // 6. Remove the cropper image clone.
+  cropperCanvas.removeChild(cropperImageClone)
+
+  const selection = cropperSelection
+  const maxSelection: Selection = {
+    x: cropperImageRect.left - cropperCanvasRect.left,
+    y: cropperImageRect.top - cropperCanvasRect.top,
+    width: cropperImageRect.width,
+    height: cropperImageRect.height,
+  }
+
+  if (!inSelection(selection, maxSelection)) {
+    event.preventDefault()
+  }
 }
 </script>
 
@@ -188,13 +249,23 @@ function zoom(ratio: number) {
       .cropper-wrap-box {
         flex: 1;
         position: relative;
-        cropper-canvas{
+        cropper-canvas {
           height: 200px !important;
-
+        }
+        cropper-shade {
+          border-radius: 50%;
+          border: 1px solid #ccc;
+        }
+        cropper-handle {
+          background-color: unset;
         }
       }
       .cropper-preview-box {
         flex: 1;
+        cropper-viewer {
+          width: 100%;
+          border-radius: 50%;
+        }
       }
     }
   }
