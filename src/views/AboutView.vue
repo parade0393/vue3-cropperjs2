@@ -17,14 +17,13 @@ const scaleY = ref(1)
 const infos = ref()
 const cropperContainerRef = ref<HTMLDivElement | null>(null)
 
-
 function formatBytes(bytes: number): string {
   if (bytes < 0) {
-    return "Invalid value"; // 可选
+    return 'Invalid value' // 可选
   }
-  const units: string[] = ["B", "KB", "MB", "GB", "TB", "PB", "EB"];
-  const i: number = Math.floor(Math.log(bytes) / Math.log(1024));
-  return `${(bytes / Math.pow(1024, i)).toFixed(2)} ${units[i]}`;
+  const units: string[] = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB']
+  const i: number = Math.floor(Math.log(bytes) / Math.log(1024))
+  return `${(bytes / Math.pow(1024, i)).toFixed(2)} ${units[i]}`
 }
 
 function openDialog() {
@@ -35,7 +34,6 @@ function openDialog() {
 }
 
 function onCropperSelectionChange() {
-
   saveCrop()
 }
 
@@ -185,7 +183,7 @@ function zoom(ratio: number) {
         <div class="cropper-preview-box">
           <el-image :src="infos?.base64" />
           <div>
-            <p>原始大小：{{ infos?.info.size||0 }}</p>
+            <p>原始大小：{{ infos?.info.size || 0 }}</p>
             <p>图片大小: {{ formatBytes(infos?.info.size || 0) }}</p>
             <p>宽度: {{ infos?.info.width || 0 }} px</p>
             <p>高度: {{ infos?.info.height || 0 }} px</p>
