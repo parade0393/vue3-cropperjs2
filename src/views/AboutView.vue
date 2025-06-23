@@ -49,7 +49,7 @@ function initializeCropper() {
               <cropper-image rotatable scalable translatable></cropper-image>
               <cropper-shade ></cropper-shade>
               <cropper-handle action="select" plain></cropper-handle>
-              <cropper-selection initial-aspect-ratio="1" initial-coverage="0.5" id="cropperSelection"  movable resizable >
+              <cropper-selection initial-aspect-ratio="1" aspect-ratio="1" initial-coverage="0.5" id="cropperSelection"  movable resizable >
                 <cropper-grid role="grid" bordered covered></cropper-grid>
                 <cropper-crosshair centered></cropper-crosshair>
                 <cropper-handle action="move"></cropper-handle>
