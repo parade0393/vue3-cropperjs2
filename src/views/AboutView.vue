@@ -26,8 +26,7 @@ const cropperInstance = ref<Cropper | null>(null)
 const editedImage = ref<string | null>(null)
 const originalImage = ref('https://fengyuanchen.github.io/cropperjs/images/picture.jpg')
 
-// State for transformations
-const rotateDeg = ref(0)
+
 const infos = ref()
 const cropperContainerRef = ref<HTMLDivElement | null>(null)
 
@@ -158,17 +157,16 @@ function reset() {
 }
 
 function move(x: number, y: number) {
-  cropperInstance.value?.getCropperSelection()?.$move(x, y)
+  cropperInstance.value?.getCropperImage()?.$move(x, y)
 }
 
 
 function rotate(degree: number) {
-  rotateDeg.value += degree
-  initializeCropper()
+  cropperInstance.value?.getCropperImage()?.$rotate(degree)
 }
 
 function zoom(ratio: number) {
-  cropperInstance.value?.getCropperSelection()?.$zoom(ratio)
+  cropperInstance.value?.getCropperImage()?.$scale(ratio)
 }
 </script>
 
@@ -212,8 +210,8 @@ function zoom(ratio: number) {
         <button @click="move(0, 10)" class="toolbar-button">下移</button>
         <button @click="rotate(-45)" class="toolbar-button">逆时针旋转</button>
         <button @click="rotate(45)" class="toolbar-button">顺时针旋转</button>
-        <button @click="zoom(0.1)" class="toolbar-button">放大</button>
-        <button @click="zoom(-0.1)" class="toolbar-button">缩小</button>
+        <button @click="zoom(1.1)" class="toolbar-button">放大</button>
+        <button @click="zoom(0.9)" class="toolbar-button">缩小</button>
       </div>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
