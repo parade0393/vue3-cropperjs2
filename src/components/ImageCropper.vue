@@ -69,6 +69,7 @@ function onCropperSelectionChange() {
 
 function initializeCropper() {
   if (cropperInstance.value) {
+    return
   }
 
   const template = `
@@ -164,7 +165,7 @@ function saveCrop(isSave: boolean) {
 function toggleShape() {
   componentIsCircle.value = !componentIsCircle.value
   // Re-initialize cropper to apply shape change
-  initializeCropper()
+  // initializeCropper()
 }
 
 function reset() {
@@ -206,11 +207,9 @@ defineExpose({ openDialog, closeDialog });
         <div ref="cropperContainerRef" class="cropper-wrap-box"></div>
         <div class="cropper-preview-box">
           <el-image :src="infos?.base64" />
-          <div>
-            <p>原始大小：{{ infos?.info.size || 0 }}</p>
-            <p>图片大小: {{ formatBytes(infos?.info.size || 0) }}</p>
-            <p>宽度: {{ infos?.info.width || 0 }} px</p>
-            <p>高度: {{ infos?.info.height || 0 }} px</p>
+          <div class="perview-info">
+            <p>图像大小：{{ infos?.info.width || 0 }} x {{ infos?.info.height || 0 }}像素</p>
+            <p>文件大小: {{ formatBytes(infos?.info.size || 0) }}({{ infos?.info.size || 0 }}字节)</p>
           </div>
         </div>
       </div>
@@ -256,18 +255,23 @@ defineExpose({ openDialog, closeDialog });
         :deep(cropper-canvas) {
           height: v-bind(innerHeight) !important;
         }
-        cropper-shade {
+        :deep(cropper-shade) {
           border-radius: v-bind('componentIsCircle ? "50%" : "unset"');
           border: 1px solid #ccc;
         }
-        cropper-handle {
+        :deep(cropper-handle) {
           background-color: unset;
         }
       }
       .cropper-preview-box {
-        flex: 1;
-        cropper-viewer {
+        // flex: 1;
+        // display: flex;
+        flex-direction: column;
+        :deep(cropper-viewer) {
           border-radius: v-bind('componentIsCircle ? "50%" : "unset"');
+        }
+        .perview-info{
+          // flex: 1;
         }
       }
     }
