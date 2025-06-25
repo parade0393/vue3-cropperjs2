@@ -4,9 +4,25 @@ import Cropper from 'cropperjs'
 
 import { ElDialog, ElButton } from 'element-plus'
 
+
+interface Props{
+  title?: string,
+  outerWidth?: string,
+  isCircle?: boolean,
+  innerHeight?: string,
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  title: '图片编辑',
+  outerWidth: '40%',
+  isCircle: true,
+  innerHeight: '200px',
+})
+
+const componentIsCircle = ref(props.isCircle)
+
 const dialogVisible = ref(false)
 const cropperInstance = ref<Cropper | null>(null)
-const isCircle = ref(false)
 const editedImage = ref<string | null>(null)
 const originalImage = ref('https://fengyuanchen.github.io/cropperjs/images/picture.jpg')
 
@@ -45,7 +61,7 @@ function initializeCropper() {
   const template = `
         <cropper-canvas background>
               <cropper-image rotatable scalable translatable></cropper-image>
-              <cropper-shade ></cropper-shade>
+              <cropper-shade></cropper-shade>
               <cropper-handle action="select" plain></cropper-handle>
               <cropper-selection initial-aspect-ratio="1" aspect-ratio="1" initial-coverage="0.5" id="cropperSelection"  movable resizable >
                 <cropper-grid role="grid" bordered covered></cropper-grid>
@@ -98,6 +114,7 @@ function saveCrop() {
     selection
       .$toCanvas({
         beforeDraw(ctx, canvas) {
+          if(!componentIsCircle.value) return
           const x = canvas.width / 2
           const y = canvas.height / 2
           const radius = Math.min(canvas.width, canvas.height) / 2
@@ -130,7 +147,7 @@ function saveCrop() {
 }
 
 function toggleShape() {
-  isCircle.value = !isCircle.value
+  componentIsCircle.value = !componentIsCircle.value
   // Re-initialize cropper to apply shape change
   initializeCropper()
 }
@@ -141,8 +158,7 @@ function reset() {
   scaleY.value = 1
   if (cropperInstance.value) {
     const selection = cropperInstance.value.getCropperSelection()
-    selection?.$moveTo(0, 0)
-    initializeCropper()
+    selection?.$reset()
   }
 }
 
@@ -150,14 +166,6 @@ function move(x: number, y: number) {
   cropperInstance.value?.getCropperSelection()?.$move(x, y)
 }
 
-function flip(horizontal: boolean) {
-  if (horizontal) {
-    scaleX.value *= -1
-  } else {
-    scaleY.value *= -1
-  }
-  initializeCropper()
-}
 
 function rotate(degree: number) {
   rotateDeg.value += degree
@@ -177,7 +185,7 @@ function zoom(ratio: number) {
       <el-button @click="openDialog" type="primary">编辑</el-button>
     </div>
 
-    <el-dialog v-model="dialogVisible" modal-class="cropper-modal" title="编辑图片" width="40%">
+    <el-dialog v-model="dialogVisible" modal-class="cropper-modal" :title="title" :width="outerWidth">
       <div class="cropper-container">
         <div ref="cropperContainerRef" class="cropper-wrap-box"></div>
         <div class="cropper-preview-box">
@@ -200,15 +208,13 @@ function zoom(ratio: number) {
         />
         <label for="upload-input" class="toolbar-button">上传</label>
         <button @click="toggleShape" class="toolbar-button">
-          {{ isCircle ? '矩形' : '圆形' }}裁剪
+          {{ componentIsCircle ? '矩形' : '圆形' }}裁剪
         </button>
         <button @click="reset" class="toolbar-button">重置</button>
         <button @click="move(-10, 0)" class="toolbar-button">左移</button>
         <button @click="move(10, 0)" class="toolbar-button">右移</button>
         <button @click="move(0, -10)" class="toolbar-button">上移</button>
         <button @click="move(0, 10)" class="toolbar-button">下移</button>
-        <button @click="flip(true)" class="toolbar-button">水平翻转</button>
-        <button @click="flip(false)" class="toolbar-button">垂直翻转</button>
         <button @click="rotate(-45)" class="toolbar-button">逆时针旋转</button>
         <button @click="rotate(45)" class="toolbar-button">顺时针旋转</button>
         <button @click="zoom(0.1)" class="toolbar-button">放大</button>
@@ -230,16 +236,16 @@ function zoom(ratio: number) {
     .cropper-container {
       display: flex;
       flex-direction: row;
-      height: 200px;
+      height: v-bind(innerHeight);
       gap: 20px;
       .cropper-wrap-box {
         flex: 1;
         position: relative;
         cropper-canvas {
-          height: 200px !important;
+          height: v-bind(innerHeight) !important;
         }
         cropper-shade {
-          border-radius: 50%;
+          border-radius: v-bind('componentIsCircle ? "50%" : "unset"');
           border: 1px solid #ccc;
         }
         cropper-handle {
@@ -249,7 +255,7 @@ function zoom(ratio: number) {
       .cropper-preview-box {
         flex: 1;
         cropper-viewer {
-          border-radius: 50%;
+          border-radius: v-bind('componentIsCircle ? "50%" : "unset"');
         }
       }
     }
