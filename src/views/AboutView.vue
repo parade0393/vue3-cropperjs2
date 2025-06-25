@@ -28,8 +28,6 @@ const originalImage = ref('https://fengyuanchen.github.io/cropperjs/images/pictu
 
 // State for transformations
 const rotateDeg = ref(0)
-const scaleX = ref(1)
-const scaleY = ref(1)
 const infos = ref()
 const cropperContainerRef = ref<HTMLDivElement | null>(null)
 
@@ -153,9 +151,6 @@ function toggleShape() {
 }
 
 function reset() {
-  rotateDeg.value = 0
-  scaleX.value = 1
-  scaleY.value = 1
   if (cropperInstance.value) {
     const selection = cropperInstance.value.getCropperSelection()
     selection?.$reset()
