@@ -63,6 +63,8 @@ const componentIsCircle = ref(props.isCircle)
 const dialogVisible = ref(false)
 const cropperInstance = ref<Cropper | null>(null)
 const originalImage = ref(props.imgSrc)
+let initTimeoutId: number | null = null;
+let uploadTimeoutId: number | null = null;
 
 
 const infos = ref<CropperData | undefined>()
@@ -76,6 +78,36 @@ function formatBytes(bytes: number): string {
   const i: number = Math.floor(Math.log(bytes) / Math.log(1024))
   return `${(bytes / Math.pow(1024, i)).toFixed(2)} ${units[i]}`
 }
+
+/**
+ * @desc 函数防抖
+ * @param func 目标函数
+ * @param wait 延迟执行毫秒数
+ * @param immediate true - 立即执行， false - 延迟执行
+ */
+const debounce = function<T extends (...args: never[]) => unknown>(
+  func: T,
+  wait: number = 1000,
+  immediate: boolean = true
+): (...args: Parameters<T>) => void {
+  let timer: number | null = null;
+
+  return function(this: ThisParameterType<T>, ...args: Parameters<T>): void {
+    if (timer) clearTimeout(timer);
+
+    if (immediate) {
+      const callNow = !timer;
+      timer = setTimeout(() => {
+        timer = null;
+      }, wait);
+      if (callNow) func.apply(this, args);
+    } else {
+      timer = setTimeout(() => {
+        func.apply(this, args);
+      }, wait);
+    }
+  };
+};
 
 function openDialog() {
   dialogVisible.value = true
@@ -92,9 +124,13 @@ function closeDialog() {
   }
 }
 
+const debouncedSaveCrop = debounce((isSave: boolean) => {
+  saveCrop(isSave)
+}, 200)
+
 function onCropperSelectionChange() {
   console.log('裁剪区域发生变化')
-  saveCrop(false)
+  debouncedSaveCrop(false)
 }
 
 function initializeCropper() {
@@ -110,12 +146,12 @@ function initializeCropper() {
   })
 
   //否则刚开始的时候不会显示预览
-  setTimeout(() => {
+  initTimeoutId = setTimeout(() => {
     cropperInstance.value
       ?.getCropperSelection()
       ?.addEventListener('change', onCropperSelectionChange)
     cropperInstance.value?.getCropperSelection()?.$move(10, 0)
-  }, 0)
+  }, 0) as unknown as number
 }
 
 function handleUpload(event: Event) {
@@ -125,7 +161,7 @@ function handleUpload(event: Event) {
     reader.onload = (e) => {
       const upoadImg = e.target?.result as string
       cropperInstance.value?.getCropperImage()?.setAttribute('src', upoadImg)
-      setTimeout(() => {
+      uploadTimeoutId = setTimeout(() => {
         saveCrop(false)
       }, 500)
     }
@@ -212,6 +248,14 @@ onBeforeUnmount(() => {
   if (cropperInstance.value) {
     cropperInstance.value.getCropperSelection()?.removeEventListener('change', onCropperSelectionChange)
     cropperInstance.value = null
+  }
+  if (initTimeoutId) {
+    clearTimeout(initTimeoutId)
+    initTimeoutId = null
+  }
+  if (uploadTimeoutId) {
+    clearTimeout(uploadTimeoutId)
+    uploadTimeoutId = null
   }
 })
 
