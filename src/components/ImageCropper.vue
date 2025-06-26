@@ -1,12 +1,33 @@
 <script setup lang="ts">
-import { ref, nextTick, watch, defineExpose } from 'vue'
+import { ref, nextTick, watch, defineExpose,onBeforeUnmount } from 'vue'
 import Cropper from 'cropperjs'
 
 import { ElDialog, ElButton, ElImage } from 'element-plus'
 
+const CROPPER_TEMPLATE = `
+        <cropper-canvas background>
+              <cropper-image rotatable scalable translatable></cropper-image>
+              <cropper-shade></cropper-shade>
+              <cropper-handle action="select" plain></cropper-handle>
+              <cropper-selection initial-aspect-ratio="1" aspect-ratio="1" initial-coverage="0.5" id="cropperSelection"  movable resizable >
+                <cropper-grid role="grid" bordered covered></cropper-grid>
+                <cropper-crosshair centered></cropper-crosshair>
+                <cropper-handle action="move"></cropper-handle>
+                <cropper-handle action="n-resize"></cropper-handle>
+                <cropper-handle action="e-resize"></cropper-handle>
+                <cropper-handle action="s-resize"></cropper-handle>
+                <cropper-handle action="w-resize"></cropper-handle>
+                <cropper-handle action="ne-resize"></cropper-handle>
+                <cropper-handle action="nw-resize"></cropper-handle>
+                <cropper-handle action="se-resize"></cropper-handle>
+                <cropper-handle action="sw-resize"></cropper-handle>
+              </cropper-selection>
+            </cropper-canvas>
+      `
+
 
 export interface CropperData {
-  base64: string | ArrayBuffer;
+  base64: string;
   blob: Blob;
   info: {
     size: number;
@@ -21,7 +42,8 @@ interface Props{
   isCircle?: boolean,
   innerHeight?: string,
   imgSrc?: string,
-  lockCircle?: boolean
+  lockCircle?: boolean,
+  template?:string
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -31,6 +53,7 @@ const props = withDefaults(defineProps<Props>(), {
   innerHeight: '200px',
   imgSrc: '',
   lockCircle: false,
+  template:CROPPER_TEMPLATE
 })
 
 const emits = defineEmits<{ (e: 'on-save', data: CropperData): void }>()
@@ -42,7 +65,7 @@ const cropperInstance = ref<Cropper | null>(null)
 const originalImage = ref(props.imgSrc)
 
 
-const infos = ref()
+const infos = ref<CropperData | undefined>()
 const cropperContainerRef = ref<HTMLDivElement | null>(null)
 
 function formatBytes(bytes: number): string {
@@ -63,9 +86,14 @@ function openDialog() {
 
 function closeDialog() {
   dialogVisible.value = false
+  if(cropperInstance.value){
+    cropperInstance.value.getCropperSelection()?.removeEventListener('change', onCropperSelectionChange)
+    cropperInstance.value = null
+  }
 }
 
 function onCropperSelectionChange() {
+  console.log('裁剪区域发生变化')
   saveCrop(false)
 }
 
@@ -73,32 +101,11 @@ function initializeCropper() {
   if (cropperInstance.value) {
     return
   }
-
-  const template = `
-        <cropper-canvas background>
-              <cropper-image rotatable scalable translatable></cropper-image>
-              <cropper-shade></cropper-shade>
-              <cropper-handle action="select" plain></cropper-handle>
-              <cropper-selection initial-aspect-ratio="1" aspect-ratio="1" initial-coverage="0.5" id="cropperSelection"  movable resizable >
-                <cropper-grid role="grid" bordered covered></cropper-grid>
-                <cropper-crosshair centered></cropper-crosshair>
-                <cropper-handle action="move"></cropper-handle>
-                <cropper-handle action="n-resize"></cropper-handle>
-                <cropper-handle action="e-resize"></cropper-handle>
-                <cropper-handle action="s-resize"></cropper-handle>
-                <cropper-handle action="w-resize"></cropper-handle>
-                <cropper-handle action="ne-resize"></cropper-handle>
-                <cropper-handle action="nw-resize"></cropper-handle>
-                <cropper-handle action="se-resize"></cropper-handle>
-                <cropper-handle action="sw-resize"></cropper-handle>
-              </cropper-selection>
-            </cropper-canvas>
-      `
   const image = new Image()
   image.src = originalImage.value
   image.crossOrigin = 'anonymous' // 解决跨域问题
   cropperInstance.value = new Cropper(image, {
-    template: template,
+    template: props.template,
     container: cropperContainerRef.value as HTMLDivElement,
   })
 
@@ -152,7 +159,7 @@ function saveCrop(isSave: boolean) {
           fileReader.onloadend = (e) => {
             if (!e.target?.result || !blob) return
             const result = {
-              base64: e.target.result,
+              base64: e.target.result as string,
               blob,
               info: { size: blob.size, width: selection.width, height: selection.height },
             }
@@ -199,6 +206,13 @@ watch(() => props.isCircle, (val) => {
 
 watch(() => props.imgSrc, (val) => {
   originalImage.value = val
+})
+
+onBeforeUnmount(() => {
+  if (cropperInstance.value) {
+    cropperInstance.value.getCropperSelection()?.removeEventListener('change', onCropperSelectionChange)
+    cropperInstance.value = null
+  }
 })
 
 
