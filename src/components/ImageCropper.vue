@@ -20,7 +20,8 @@ interface Props{
   outerWidth?: string,
   isCircle?: boolean,
   innerHeight?: string,
-  imgSrc?: string
+  imgSrc?: string,
+  lockCircle?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -28,7 +29,8 @@ const props = withDefaults(defineProps<Props>(), {
   outerWidth: '40%',
   isCircle: true,
   innerHeight: '200px',
-  imgSrc: 'https://fengyuanchen.github.io/cropperjs/images/picture.jpg'
+  imgSrc: '',
+  lockCircle: false,
 })
 
 const emits = defineEmits<{ (e: 'on-save', data: CropperData): void }>()
@@ -116,6 +118,9 @@ function handleUpload(event: Event) {
     reader.onload = (e) => {
       const upoadImg = e.target?.result as string
       cropperInstance.value?.getCropperImage()?.setAttribute('src', upoadImg)
+      setTimeout(() => {
+        saveCrop(false)
+      }, 500)
     }
     reader.readAsDataURL(input.files[0])
   }
@@ -164,8 +169,7 @@ function saveCrop(isSave: boolean) {
 
 function toggleShape() {
   componentIsCircle.value = !componentIsCircle.value
-  // Re-initialize cropper to apply shape change
-  // initializeCropper()
+  saveCrop(false)
 }
 
 function reset() {
@@ -206,8 +210,8 @@ defineExpose({ openDialog, closeDialog });
       <div class="cropper-container">
         <div ref="cropperContainerRef" class="cropper-wrap-box"></div>
         <div class="cropper-preview-box">
-          <el-image :src="infos?.base64" />
-          <div class="perview-info">
+          <el-image :src="infos?.base64" v-show="infos?.base64"/>
+          <div class="perview-info" v-show="infos?.base64">
             <p>图像大小：{{ infos?.info.width || 0 }} x {{ infos?.info.height || 0 }}像素</p>
             <p>文件大小: {{ formatBytes(infos?.info.size || 0) }}({{ infos?.info.size || 0 }}字节)</p>
           </div>
@@ -222,7 +226,7 @@ defineExpose({ openDialog, closeDialog });
           id="upload-input"
         />
         <label for="upload-input" class="toolbar-button">上传</label>
-        <button @click="toggleShape" class="toolbar-button">
+        <button v-if="!lockCircle" @click="toggleShape" class="toolbar-button">
           {{ componentIsCircle ? '矩形' : '圆形' }}裁剪
         </button>
         <button @click="reset" class="toolbar-button">重置</button>
@@ -264,14 +268,20 @@ defineExpose({ openDialog, closeDialog });
         }
       }
       .cropper-preview-box {
-        // flex: 1;
-        // display: flex;
+        flex: 1;
+        display: flex;
         flex-direction: column;
+        .el-image{
+          align-self: center;
+        }
         :deep(cropper-viewer) {
           border-radius: v-bind('componentIsCircle ? "50%" : "unset"');
         }
         .perview-info{
-          // flex: 1;
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          justify-content: flex-end;
         }
       }
     }
